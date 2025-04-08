@@ -1,0 +1,70 @@
+package com.recipe.util;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+public class DBUtil {
+    private static final String DB_URL = "jdbc:sqlite:recipe_management.db";
+    private static Connection connection = null;
+
+    // Get database connection
+    public static Connection getConnection() {
+        try {
+            if (connection == null || connection.isClosed()) {
+                Class.forName("org.sqlite.JDBC");
+                connection = DriverManager.getConnection(DB_URL);
+                initializeDatabase();
+            }
+            return connection;
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to connect to database", e);
+        }
+    }
+
+    // Close database connection
+    public static void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Initialize database tables if they don't exist
+    private static void initializeDatabase() {
+        try (Statement stmt = connection.createStatement()) {
+            // Create Users table
+            stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "username TEXT NOT NULL UNIQUE," +
+                    "password TEXT NOT NULL," +
+                    "email TEXT NOT NULL," +
+                    "role TEXT NOT NULL," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+            // Create Recipes table
+            stmt.execute("CREATE TABLE IF NOT EXISTS recipes (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "user_id INTEGER NOT NULL," +
+                    "name TEXT NOT NULL," +
+                    "category TEXT NOT NULL," +
+                    "ingredients TEXT NOT NULL," +
+                    "instructions TEXT NOT NULL," +
+                    "status TEXT DEFAULT 'pending'," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))");
+
+            // Insert admin user if not exists
+            stmt.execute("INSERT OR IGNORE INTO users (username, password, email, role) " +
+                    "VALUES ('admin', 'admin123', 'admin@recipe.com', 'admin')");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+}
